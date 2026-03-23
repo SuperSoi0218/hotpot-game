@@ -232,6 +232,12 @@ const gameState = {
         bitter: 0,
         spicy: 0,
         salty: 0
+    },
+    
+    // 新手指引
+    tutorial: {
+        step: 0, // 0: 未开始, 1: 点击升级, 2: 雇佣员工, 3: 完成
+        completed: false
     }
 };
 
@@ -266,6 +272,9 @@ class Table {
         this.food = null;
         this.eatingTimer = 0;
         this.dirtyTimer = 0;
+        // 顾客动画相关
+        this.customerY = y - 15; // 顾客Y位置
+        this.customerOffset = 0; // 呼吸动画偏移
     }
     
     draw() {
@@ -293,16 +302,30 @@ class Table {
         
         // 顾客
         if (this.customer) {
+            // 更新呼吸动画
+            this.customerOffset = Math.sin(Date.now() / 300) * 3;
+            const animY = this.customerY + this.customerOffset;
+            
+            // 顾客身体 - 使用顾客类型颜色
             ctx.fillStyle = this.customer.color;
             ctx.beginPath();
-            ctx.arc(this.x + this.width/2, this.y - 15, 20, 0, Math.PI * 2);
+            ctx.arc(this.x + this.width/2, animY, 20, 0, Math.PI * 2);
             ctx.fill();
             
-            // 顾客名称
+            // 顾客外圈发光效果
+            ctx.strokeStyle = this.customer.color;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.5;
+            ctx.beginPath();
+            ctx.arc(this.x + this.width/2, animY, 23, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+            
+            // 顾客名称 - 显示类型名称
             ctx.fillStyle = '#fff';
-            ctx.font = '12px Microsoft YaHei';
+            ctx.font = 'bold 12px Microsoft YaHei';
             ctx.textAlign = 'center';
-            ctx.fillText(this.customer.name, this.x + this.width/2, this.y - 40);
+            ctx.fillText(this.customer.type.name, this.x + this.width/2, animY - 28);
             
             // 状态
             let statusText = '';
@@ -314,7 +337,13 @@ class Table {
                 case 'dirty': statusText = '待打扫'; statusColor = '#aaa'; break;
             }
             ctx.fillStyle = statusColor;
+            ctx.font = '11px Microsoft YaHei';
             ctx.fillText(statusText, this.x + this.width/2, this.y + this.height + 15);
+            
+            // 顾客消费金额显示
+            ctx.fillStyle = '#ffd700';
+            ctx.font = '10px Microsoft YaHei';
+            ctx.fillText(`¥${this.customer.spend}`, this.x + this.width/2, animY + 35);
         }
     }
 }
@@ -328,6 +357,29 @@ class Customer {
         this.spend = Math.floor(Math.random() * (type.maxSpend - type.minSpend) + type.minSpend);
         this.color = type.color;
         this.patience = 100;
+        // 移动动画相关
+        this.targetX = 0;
+        this.targetY = 0;
+        this.currentX = 0;
+        this.currentY = 0;
+        this.moving = false;
+        this.moveSpeed = 0.05;
+    }
+    
+    // 更新移动
+    update(deltaTime) {
+        if (this.moving) {
+            const dx = this.targetX - this.currentX;
+            const dy = this.targetY - this.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 1) {
+                this.currentX += dx * this.moveSpeed;
+                this.currentY += dy * this.moveSpeed;
+            } else {
+                this.moving = false;
+            }
+        }
     }
 }
 
@@ -468,6 +520,16 @@ function showPanel(type) {
     
     panel.classList.remove('hidden');
     
+    // 新手指引：点击升级面板时推进到步骤1
+    if (type === 'upgrade' && gameState.tutorial.step === 0) {
+        gameState.tutorial.step = 1;
+    }
+    
+    // 新手指引：点击员工面板时推进到步骤2
+    if (type === 'staff' && gameState.tutorial.step === 1) {
+        gameState.tutorial.step = 2;
+    }
+    
     switch(type) {
         case 'menu':
             title.textContent = '菜单管理';
@@ -562,17 +624,22 @@ function renderUpgradePanel() {
         html += `<div class="upgrade-item" data-upgrade-id="${upg.id}">
             <div class="level">${upg.name} Lv.${upg.level}</div>
             <div class="desc">${upg.desc}</div>
-            <button class="${btnClass}" data-upgrade-id="${upg.id}">${btnText}</button>
+            <button class="${btnClass}" data-upgrade-id="${upg.id}" ${maxed ? 'disabled' : ''}>${btnText}</button>
         </div>`;
     }
     html += '</div></div>';
     
-    // 绑定升级事件
+    // 绑定升级事件 - 使用直接绑定方式
     setTimeout(() => {
-        document.querySelectorAll('.upgrade-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        const buttons = document.querySelectorAll('.upgrade-btn');
+        buttons.forEach(btn => {
+            // 移除旧的事件监听器
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                const upgradeId = btn.dataset.upgradeId;
+                const upgradeId = this.getAttribute('data-upgrade-id');
                 purchaseUpgrade(upgradeId);
             });
         });
@@ -605,6 +672,9 @@ function purchaseUpgrade(upgradeId) {
     
     // 应用升级效果
     applyUpgradeEffect(upgradeId);
+    
+    // 立即更新UI
+    updateUI();
     
     showMessage(`${upgradeId === 'tables' ? '餐桌数量' : upgradeId === 'tableSpeed' ? '翻台速度' : upgradeId === 'kitchen' ? '厨房效率' : '等候区'}升级到 Lv.${upgrade.level}！`);
     
@@ -664,7 +734,7 @@ function renderStaffPanel() {
         html += `<div class="staff-item" data-staff-id="${s.id}">
             <div class="role">${s.name} - ${s.role}</div>
             <div class="wage">日薪: ¥${s.wage}/天</div>
-            <button class="${btnClass}" data-staff-id="${s.id}">${btnText}</button>
+            <button class="${btnClass}" data-staff-id="${s.id}" ${hired ? 'disabled' : ''}>${btnText}</button>
         </div>`;
     }
     html += '</div></div><div class="panel-section"><h4>员工状态</h4>';
@@ -680,12 +750,17 @@ function renderStaffPanel() {
     }
     html += '</div>';
     
-    // 绑定雇佣事件
+    // 绑定雇佣事件 - 使用直接绑定方式
     setTimeout(() => {
-        document.querySelectorAll('.hire-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        const buttons = document.querySelectorAll('.hire-btn');
+        buttons.forEach(btn => {
+            // 移除旧的事件监听器
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                const staffId = btn.dataset.staffId;
+                const staffId = this.getAttribute('data-staff-id');
                 hireStaff(staffId);
             });
         });
@@ -730,7 +805,19 @@ function hireStaff(staffId) {
         dailyWage: staffData.wage
     };
     
+    // 立即更新UI
+    updateUI();
+    
     showMessage(`成功雇佣 ${staffData.name}！`);
+    
+    // 新手指引：雇佣员工后推进到步骤3
+    if (gameState.tutorial.step === 2) {
+        gameState.tutorial.step = 3;
+        // 3秒后完成指引
+        setTimeout(() => {
+            gameState.tutorial.completed = true;
+        }, 3000);
+    }
     
     // 刷新面板
     showPanel('staff');
@@ -1131,6 +1218,153 @@ function render() {
     
     // 绘制厨房进度
     drawKitchenProgress();
+    
+    // 绘制员工
+    drawStaff();
+    
+    // 绘制新手指引
+    drawTutorialHint();
+}
+
+// 绘制员工
+function drawStaff() {
+    const isMobile = canvas.width < 800;
+    const staffY = isMobile ? canvas.height * 0.65 : 500;
+    const staffX = isMobile ? canvas.width * 0.1 : 100;
+    
+    // 绘制已雇佣的员工
+    for (const [id, staff] of Object.entries(gameState.staff)) {
+        if (!staff) continue;
+        
+        let x, y;
+        switch(id) {
+            case 'server':
+                x = isMobile ? canvas.width * 0.25 : 280;
+                y = isMobile ? canvas.height * 0.45 : 250;
+                break;
+            case 'cashier':
+                x = isMobile ? canvas.width * 0.75 : 450;
+                y = isMobile ? canvas.height * 0.45 : 250;
+                break;
+            case 'chef':
+                x = isMobile ? canvas.width * 0.5 : 700;
+                y = isMobile ? canvas.height * 0.8 : 300;
+                break;
+            case 'cleaner':
+                x = isMobile ? canvas.width * 0.5 : 350;
+                y = isMobile ? canvas.height * 0.5 : 380;
+                break;
+            default:
+                continue;
+        }
+        
+        // 员工身体 - 穿围裙的标识
+        ctx.fillStyle = '#e74c3c'; // 红色围裙
+        ctx.fillRect(x - 10, y - 5, 20, 25);
+        
+        // 员工头部
+        ctx.fillStyle = '#ffd93d'; // 黄色皮肤
+        ctx.beginPath();
+        ctx.arc(x, y - 15, 12, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 员工名称标签
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText(staff.name, x, y - 32);
+        
+        // 员工角色标识
+        ctx.fillStyle = '#4ecdc4';
+        ctx.font = '9px Microsoft YaHei';
+        ctx.fillText(staff.role, x, y + 28);
+    }
+}
+
+// 绘制新手指引
+function drawTutorialHint() {
+    const tutorial = gameState.tutorial;
+    
+    // 如果已完成，不显示指引
+    if (tutorial.completed) return;
+    
+    const isMobile = canvas.width < 800;
+    let hint = '';
+    let targetX = 0;
+    let targetY = 0;
+    
+    switch(tutorial.step) {
+        case 0:
+            // 初始状态，提示点击升级按钮
+            hint = '点击下方"升级"按钮来升级设施！';
+            targetX = canvas.width / 2;
+            targetY = canvas.height - 120;
+            break;
+        case 1:
+            // 已点击升级，提示升级餐桌
+            hint = '点击"餐桌数量"升级来增加桌子！';
+            targetX = isMobile ? canvas.width * 0.3 : 350;
+            targetY = isMobile ? canvas.height * 0.4 : 200;
+            break;
+        case 2:
+            // 已升级餐桌，提示雇佣员工
+            hint = '点击"员工"雇佣服务员来自动工作！';
+            targetX = canvas.width / 2;
+            targetY = canvas.height - 120;
+            break;
+        case 3:
+            // 提示开始游戏
+            hint = '恭喜！开始经营你的火锅店吧！';
+            targetX = canvas.width / 2;
+            targetY = canvas.height / 2;
+            break;
+    }
+    
+    if (!hint) return;
+    
+    // 绘制指引气泡
+    const padding = 10;
+    ctx.font = 'bold 14px Microsoft YaHei';
+    const textWidth = ctx.measureText(hint).width;
+    const boxWidth = textWidth + padding * 2;
+    const boxHeight = 40;
+    const boxX = targetX - boxWidth / 2;
+    const boxY = targetY - 50;
+    
+    // 气泡背景
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.95)';
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.lineWidth = 3;
+    
+    // 圆角矩形
+    const radius = 10;
+    ctx.beginPath();
+    ctx.moveTo(boxX + radius, boxY);
+    ctx.lineTo(boxX + boxWidth - radius, boxY);
+    ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + radius);
+    ctx.lineTo(boxX + boxWidth, boxY + boxHeight - radius);
+    ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - radius, boxY + boxHeight);
+    ctx.lineTo(boxX + radius, boxY + boxHeight);
+    ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - radius);
+    ctx.lineTo(boxX, boxY + radius);
+    ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // 气泡箭头
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.95)';
+    ctx.beginPath();
+    ctx.moveTo(targetX - 10, targetY - 10);
+    ctx.lineTo(targetX + 10, targetY - 10);
+    ctx.lineTo(targetX, targetY - 5);
+    ctx.closePath();
+    ctx.fill();
+    
+    // 气泡文字
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+    ctx.fillText(hint, targetX, boxY + 26);
 }
 
 // 绘制地板
