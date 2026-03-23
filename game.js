@@ -300,50 +300,40 @@ class Table {
             ctx.fill();
         }
         
-        // 顾客
-        if (this.customer) {
-            // 更新呼吸动画
-            this.customerOffset = Math.sin(Date.now() / 300) * 3;
-            const animY = this.customerY + this.customerOffset;
-            
-            // 顾客身体 - 使用顾客类型颜色
-            ctx.fillStyle = this.customer.color;
-            ctx.beginPath();
-            ctx.arc(this.x + this.width/2, animY, 20, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // 顾客外圈发光效果
-            ctx.strokeStyle = this.customer.color;
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.5;
-            ctx.beginPath();
-            ctx.arc(this.x + this.width/2, animY, 23, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
-            
-            // 顾客名称 - 显示类型名称
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 12px Microsoft YaHei';
-            ctx.textAlign = 'center';
-            ctx.fillText(this.customer.type.name, this.x + this.width/2, animY - 28);
-            
-            // 状态
-            let statusText = '';
-            let statusColor = '#fff';
-            switch(this.status) {
-                case 'occupied': statusText = '点餐中'; statusColor = '#ffd700'; break;
-                case 'eating': statusText = '用餐中'; statusColor = '#4ecdc4'; break;
-                case 'waitingCheckout': statusText = '待结账'; statusColor = '#ff6b6b'; break;
-                case 'dirty': statusText = '待打扫'; statusColor = '#aaa'; break;
+        // 顾客 - 使用新的绘制方法
+        if (this.customer && this.customer.status !== 'left') {
+            // 如果顾客还在移动中，绘制移动动画
+            if (this.customer.moving) {
+                // 绘制Q版2.5头身行走动画
+                this.customer.draw(this.customer.currentX, this.customer.currentY);
+            } else if (this.customer.status === 'seated' || this.customer.status === 'eating' || this.customer.status === 'waitingCheckout') {
+                // 坐下后绘制静态顾客
+                this.customer.draw(this.x + this.width/2, this.customerY);
+                
+                // 顾客名称 - 显示类型名称
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px Microsoft YaHei';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.customer.type.name, this.x + this.width/2, this.customerY - 45);
+                
+                // 状态
+                let statusText = '';
+                let statusColor = '#fff';
+                switch(this.status) {
+                    case 'occupied': statusText = '点餐中'; statusColor = '#ffd700'; break;
+                    case 'eating': statusText = '用餐中'; statusColor = '#4ecdc4'; break;
+                    case 'waitingCheckout': statusText = '待结账'; statusColor = '#ff6b6b'; break;
+                    case 'dirty': statusText = '待打扫'; statusColor = '#aaa'; break;
+                }
+                ctx.fillStyle = statusColor;
+                ctx.font = '11px Microsoft YaHei';
+                ctx.fillText(statusText, this.x + this.width/2, this.y + this.height + 15);
+                
+                // 顾客消费金额显示
+                ctx.fillStyle = '#ffd700';
+                ctx.font = '10px Microsoft YaHei';
+                ctx.fillText(`¥${this.customer.spend}`, this.x + this.width/2, this.y + this.height + 30);
             }
-            ctx.fillStyle = statusColor;
-            ctx.font = '11px Microsoft YaHei';
-            ctx.fillText(statusText, this.x + this.width/2, this.y + this.height + 15);
-            
-            // 顾客消费金额显示
-            ctx.fillStyle = '#ffd700';
-            ctx.font = '10px Microsoft YaHei';
-            ctx.fillText(`¥${this.customer.spend}`, this.x + this.width/2, animY + 35);
         }
     }
 }
@@ -357,13 +347,34 @@ class Customer {
         this.spend = Math.floor(Math.random() * (type.maxSpend - type.minSpend) + type.minSpend);
         this.color = type.color;
         this.patience = 100;
+        
         // 移动动画相关
+        this.status = 'entering'; // entering: 进入中, seated: 坐下, leaving: 离开
         this.targetX = 0;
         this.targetY = 0;
-        this.currentX = 0;
+        this.currentX = -50; // 从画布左侧外开始
         this.currentY = 0;
-        this.moving = false;
-        this.moveSpeed = 0.05;
+        this.moving = true;
+        this.moveSpeed = 0.03;
+        
+        // Q版2.5头身动画
+        this.walkFrame = 0;
+        this.walkTimer = 0;
+    }
+    
+    // 设置目标位置
+    setTarget(x, y) {
+        this.targetX = x;
+        this.targetY = y;
+        this.moving = true;
+    }
+    
+    // 开始离开
+    startLeaving() {
+        this.status = 'leaving';
+        this.targetX = canvas.width + 50; // 从右侧离开
+        this.targetY = this.currentY;
+        this.moving = true;
     }
     
     // 更新移动
@@ -373,12 +384,75 @@ class Customer {
             const dy = this.targetY - this.currentY;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
-            if (dist > 1) {
+            if (dist > 2) {
+                // 平滑移动
                 this.currentX += dx * this.moveSpeed;
                 this.currentY += dy * this.moveSpeed;
+                
+                // 行走动画
+                this.walkTimer += deltaTime;
+                if (this.walkTimer > 100) {
+                    this.walkFrame = (this.walkFrame + 1) % 4;
+                    this.walkTimer = 0;
+                }
             } else {
+                this.currentX = this.targetX;
+                this.currentY = this.targetY;
                 this.moving = false;
+                
+                // 到达目标
+                if (this.status === 'entering') {
+                    this.status = 'seated';
+                } else if (this.status === 'leaving') {
+                    this.status = 'left';
+                }
             }
+        }
+    }
+    
+    // 绘制Q版2.5头身角色
+    draw(x, y) {
+        const isMobile = canvas.width < 800;
+        const scale = isMobile ? 0.8 : 1;
+        const baseSize = 20 * scale;
+        
+        // 行走时的上下摆动
+        const bounce = this.moving ? Math.sin(this.walkFrame * Math.PI / 2) * 3 : 0;
+        
+        // 身体
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.ellipse(x, y + bounce - baseSize * 0.3, baseSize * 0.8, baseSize * 0.9, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 头部（大头）
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(x, y + bounce - baseSize * 1.5, baseSize, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 脸部
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x - baseSize * 0.3, y + bounce - baseSize * 1.5, baseSize * 0.25, 0, Math.PI * 2);
+        ctx.arc(x + baseSize * 0.3, y + bounce - baseSize * 1.5, baseSize * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 眼睛
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.arc(x - baseSize * 0.3, y + bounce - baseSize * 1.5, baseSize * 0.12, 0, Math.PI * 2);
+        ctx.arc(x + baseSize * 0.3, y + bounce - baseSize * 1.5, baseSize * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 脚（行走动画）
+        if (this.moving && this.status !== 'seated') {
+            ctx.fillStyle = '#333';
+            const footOffset = Math.sin(this.walkFrame * Math.PI / 2) * 5;
+            ctx.beginPath();
+            ctx.ellipse(x - baseSize * 0.3, y + bounce + baseSize * 0.5, baseSize * 0.25, baseSize * 0.15, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + baseSize * 0.3 + footOffset, y + bounce + baseSize * 0.5, baseSize * 0.25, baseSize * 0.15, 0, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 }
@@ -952,8 +1026,16 @@ function spawnCustomer() {
     const emptyTable = gameState.tables.find(t => t.status === 'empty');
     
     if (emptyTable) {
-        // 有空桌子，直接坐下
+        // 有空桌子，从左侧进入
         const customer = new Customer();
+        customer.status = 'entering';
+        
+        // 计算目标位置（桌子旁边）
+        const targetX = emptyTable.x + emptyTable.width / 2;
+        const targetY = emptyTable.y - 30;
+        customer.setTarget(targetX, targetY);
+        
+        // 设置桌子的顾客
         emptyTable.customer = customer;
         emptyTable.status = 'occupied';
         
@@ -962,6 +1044,10 @@ function spawnCustomer() {
     } else if (gameState.waitingQueue.length < gameState.waitingAreaCapacity) {
         // 桌子满了，去等候区排队
         const customer = new Customer();
+        customer.status = 'waiting';
+        // 等候区位置
+        customer.currentX = -50;
+        customer.currentY = canvas.height / 2 + 100;
         gameState.waitingQueue.push(customer);
     }
     // 等候区满了则不生成
@@ -972,6 +1058,13 @@ function seatWaitingCustomer() {
     const emptyTable = gameState.tables.find(t => t.status === 'empty');
     if (emptyTable && gameState.waitingQueue.length > 0) {
         const customer = gameState.waitingQueue.shift();
+        customer.status = 'entering';
+        
+        // 计算目标位置
+        const targetX = emptyTable.x + emptyTable.width / 2;
+        const targetY = emptyTable.y - 30;
+        customer.setTarget(targetX, targetY);
+        
         emptyTable.customer = customer;
         emptyTable.status = 'occupied';
         
@@ -1159,10 +1252,14 @@ function updateTables(deltaTime) {
         if (table.status === 'eating') {
             table.eatingTimer += deltaTime * eatingSpeed;
             if (table.eatingTimer >= CONFIG.EATING_DURATION) {
+                // 顾客开始离开
+                if (table.customer) {
+                    table.customer.startLeaving();
+                }
                 table.status = 'waitingCheckout';
                 // 如果没有收银员，系统自动结账
                 if (!gameState.staff.cashier) {
-                    checkout(table);
+                    setTimeout(() => checkout(table), 500);
                 }
             }
         } else if (table.status === 'dirty') {
@@ -1176,6 +1273,16 @@ function updateTables(deltaTime) {
                     table.food = null;
                     table.dirtyTimer = 0;
                 }
+            }
+        }
+        
+        // 更新顾客位置
+        if (table.customer && table.customer.status !== 'left') {
+            table.customer.update(deltaTime);
+            
+            // 如果顾客已离开，清除
+            if (table.customer.status === 'left') {
+                table.customer = null;
             }
         }
     }
@@ -1226,58 +1333,164 @@ function render() {
     drawTutorialHint();
 }
 
+// 员工状态
+const staffAnimations = {
+    server: { x: 280, y: 250, targetX: 280, targetY: 250, walkFrame: 0, walkTimer: 0 },
+    cashier: { x: 450, y: 250, targetX: 450, targetY: 250, walkFrame: 0, walkTimer: 0 },
+    chef: { x: 700, y: 300, targetX: 700, targetY: 300, walkFrame: 0, walkTimer: 0 },
+    cleaner: { x: 350, y: 380, targetX: 350, targetY: 380, walkFrame: 0, walkTimer: 0 },
+};
+
 // 绘制员工
 function drawStaff() {
     const isMobile = canvas.width < 800;
-    const staffY = isMobile ? canvas.height * 0.65 : 500;
-    const staffX = isMobile ? canvas.width * 0.1 : 100;
+    const scale = isMobile ? 0.8 : 1;
     
     // 绘制已雇佣的员工
     for (const [id, staff] of Object.entries(gameState.staff)) {
         if (!staff) continue;
         
-        let x, y;
-        switch(id) {
-            case 'server':
-                x = isMobile ? canvas.width * 0.25 : 280;
-                y = isMobile ? canvas.height * 0.45 : 250;
-                break;
-            case 'cashier':
-                x = isMobile ? canvas.width * 0.75 : 450;
-                y = isMobile ? canvas.height * 0.45 : 250;
-                break;
-            case 'chef':
-                x = isMobile ? canvas.width * 0.5 : 700;
-                y = isMobile ? canvas.height * 0.8 : 300;
-                break;
-            case 'cleaner':
-                x = isMobile ? canvas.width * 0.5 : 350;
-                y = isMobile ? canvas.height * 0.5 : 380;
-                break;
-            default:
-                continue;
+        // 获取或初始化动画状态
+        let anim = staffAnimations[id];
+        if (!anim) {
+            anim = { 
+                x: isMobile ? canvas.width * 0.25 : 280,
+                y: isMobile ? canvas.height * 0.45 : 250,
+                targetX: 0, 
+                targetY: 0, 
+                walkFrame: 0, 
+                walkTimer: 0,
+                moving: false
+            };
+            staffAnimations[id] = anim;
         }
         
-        // 员工身体 - 穿围裙的标识
-        ctx.fillStyle = '#e74c3c'; // 红色围裙
-        ctx.fillRect(x - 10, y - 5, 20, 25);
+        // 员工随机移动（模拟工作）
+        if (!anim.moving && Math.random() < 0.01) {
+            // 随机移动到新位置
+            const range = 50;
+            anim.targetX = anim.x + (Math.random() - 0.5) * range;
+            anim.targetY = anim.y + (Math.random() - 0.5) * range;
+            anim.moving = true;
+        }
         
-        // 员工头部
+        // 移动动画
+        if (anim.moving) {
+            const dx = anim.targetX - anim.x;
+            const dy = anim.targetY - anim.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 1) {
+                anim.x += dx * 0.05;
+                anim.y += dy * 0.05;
+                
+                // 行走动画
+                anim.walkTimer += 16;
+                if (anim.walkTimer > 100) {
+                    anim.walkFrame = (anim.walkFrame + 1) % 4;
+                    anim.walkTimer = 0;
+                }
+            } else {
+                anim.moving = false;
+            }
+        }
+        
+        let x = anim.x;
+        let y = anim.y;
+        
+        // 移动端位置调整
+        if (isMobile) {
+            switch(id) {
+                case 'server':
+                    x = canvas.width * 0.25;
+                    y = canvas.height * 0.45;
+                    break;
+                case 'cashier':
+                    x = canvas.width * 0.75;
+                    y = canvas.height * 0.45;
+                    break;
+                case 'chef':
+                    x = canvas.width * 0.5;
+                    y = canvas.height * 0.8;
+                    break;
+                case 'cleaner':
+                    x = canvas.width * 0.5;
+                    y = canvas.height * 0.5;
+                    break;
+            }
+        }
+        
+        // Q版2.5头身员工绘制
+        const baseSize = 15 * scale;
+        
+        // 行走时的上下摆动
+        const bounce = anim.moving ? Math.sin(anim.walkFrame * Math.PI / 2) * 2 : 0;
+        
+        // 身体
+        ctx.fillStyle = '#3498db'; // 蓝色工作服
+        ctx.beginPath();
+        ctx.ellipse(x, y + bounce - baseSize * 0.3, baseSize * 0.7, baseSize * 0.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 围裙 - 金色/围裙标识
+        ctx.fillStyle = '#f39c12'; // 金色围裙
+        ctx.fillRect(x - baseSize * 0.5, y + bounce - baseSize * 0.2, baseSize, baseSize * 0.7);
+        
+        // 头部
         ctx.fillStyle = '#ffd93d'; // 黄色皮肤
         ctx.beginPath();
-        ctx.arc(x, y - 15, 12, 0, Math.PI * 2);
+        ctx.arc(x, y + bounce - baseSize * 1.4, baseSize * 0.9, 0, Math.PI * 2);
         ctx.fill();
+        
+        // 头发/帽子（根据角色）
+        if (id === 'chef') {
+            // 厨师帽
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(x - baseSize * 0.6, y + bounce - baseSize * 2.2, baseSize * 1.2, baseSize * 0.6);
+            ctx.beginPath();
+            ctx.arc(x, y + bounce - baseSize * 2.2, baseSize * 0.6, Math.PI, 0);
+            ctx.fill();
+        } else {
+            // 员工帽子
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath();
+            ctx.arc(x, y + bounce - baseSize * 1.8, baseSize * 0.7, Math.PI, 0);
+            ctx.fill();
+        }
+        
+        // 眼睛
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.arc(x - baseSize * 0.25, y + bounce - baseSize * 1.4, baseSize * 0.1, 0, Math.PI * 2);
+        ctx.arc(x + baseSize * 0.25, y + bounce - baseSize * 1.4, baseSize * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 脚
+        if (anim.moving) {
+            ctx.fillStyle = '#333';
+            const footOffset = Math.sin(anim.walkFrame * Math.PI / 2) * 3;
+            ctx.beginPath();
+            ctx.ellipse(x - baseSize * 0.2, y + bounce + baseSize * 0.4, baseSize * 0.2, baseSize * 0.12, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + baseSize * 0.2 + footOffset, y + bounce + baseSize * 0.4, baseSize * 0.2, baseSize * 0.12, 0, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.ellipse(x - baseSize * 0.2, y + baseSize * 0.4, baseSize * 0.2, baseSize * 0.12, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + baseSize * 0.2, y + baseSize * 0.4, baseSize * 0.2, baseSize * 0.12, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
         
         // 员工名称标签
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 11px Microsoft YaHei';
+        ctx.font = `bold ${10 * scale}px Microsoft YaHei`;
         ctx.textAlign = 'center';
-        ctx.fillText(staff.name, x, y - 32);
+        ctx.fillText(staff.name, x, y - baseSize * 2.5);
         
         // 员工角色标识
         ctx.fillStyle = '#4ecdc4';
-        ctx.font = '9px Microsoft YaHei';
-        ctx.fillText(staff.role, x, y + 28);
+        ctx.font = `${8 * scale}px Microsoft YaHei`;
+        ctx.fillText(staff.role, x, y + baseSize * 1.2);
     }
 }
 
