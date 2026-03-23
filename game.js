@@ -194,6 +194,7 @@ const gameState = {
     // 顾客
     customers: [],
     waitingQueue: [],
+    waitingAreaCapacity: 4,
     
     // 订单
     orders: [],
@@ -204,6 +205,33 @@ const gameState = {
         tableSpeed: { level: 1, maxLevel: 10 },
         kitchen: { level: 1, maxLevel: 10 },
         waitingArea: { level: 1, maxLevel: 10 }
+    },
+    
+    // 食材仓库
+    ingredients: {
+        sour: 0,    // 酸
+        sweet: 0,   // 甜
+        bitter: 0, // 苦
+        spicy: 0,  // 辣
+        salty: 0   // 咸
+    },
+    
+    // 五味树
+    flavorTrees: {
+        sour: { name: '酸梅树', level: 1, production: 1 },
+        sweet: { name: '甘蔗林', level: 1, production: 1 },
+        bitter: { name: '苦瓜藤', level: 1, production: 1 },
+        spicy: { name: '辣椒丛', level: 1, production: 1 },
+        salty: { name: '盐晶矿', level: 1, production: 1 }
+    },
+    
+    // 五味树产出计时器
+    flavorTimers: {
+        sour: 0,
+        sweet: 0,
+        bitter: 0,
+        spicy: 0,
+        salty: 0
     }
 };
 
@@ -365,6 +393,7 @@ function bindEvents() {
     document.getElementById('btn-kitchen').addEventListener('click', () => showPanel('kitchen'));
     document.getElementById('btn-upgrade').addEventListener('click', () => showPanel('upgrade'));
     document.getElementById('btn-staff').addEventListener('click', () => showPanel('staff'));
+    document.getElementById('btn-warehouse').addEventListener('click', () => showPanel('warehouse'));
     document.getElementById('panel-close').addEventListener('click', hidePanel);
     
     // 画布点击事件 - 使用通用处理函数
@@ -456,6 +485,10 @@ function showPanel(type) {
             title.textContent = '员工管理';
             content.innerHTML = renderStaffPanel();
             break;
+        case 'warehouse':
+            title.textContent = '食材仓库';
+            content.innerHTML = renderWarehousePanel();
+            break;
     }
 }
 
@@ -513,27 +546,112 @@ function renderKitchenPanel() {
 // 渲染升级面板
 function renderUpgradePanel() {
     const u = gameState.upgrades;
-    return `<div class="panel-section">
-        <h4>店铺设施</h4>
-        <div class="item-grid">
-            <div class="upgrade-item">
-                <div class="level">餐桌数量 Lv.${u.tables.level}</div>
-                <div class="cost">¥${Math.pow(2, u.tables.level) * 200}</div>
-            </div>
-            <div class="upgrade-item">
-                <div class="level">翻台速度 Lv.${u.tableSpeed.level}</div>
-                <div class="cost">¥${Math.pow(2, u.tableSpeed.level) * 150}</div>
-            </div>
-            <div class="upgrade-item">
-                <div class="level">厨房效率 Lv.${u.kitchen.level}</div>
-                <div class="cost">¥${Math.pow(2, u.kitchen.level) * 250}</div>
-            </div>
-            <div class="upgrade-item">
-                <div class="level">等候区 Lv.${u.waitingArea.level}</div>
-                <div class="cost">¥${Math.pow(2, u.waitingArea.level) * 100}</div>
-            </div>
-        </div>
-    </div>`;
+    const upgrades = [
+        { id: 'tables', name: '餐桌数量', level: u.tables.level, baseCost: 200, desc: '增加桌子数量' },
+        { id: 'tableSpeed', name: '翻台速度', level: u.tableSpeed.level, baseCost: 150, desc: '加快顾客用餐速度' },
+        { id: 'kitchen', name: '厨房效率', level: u.kitchen.level, baseCost: 250, desc: '加快烹饪速度' },
+        { id: 'waitingArea', name: '等候区', level: u.waitingArea.level, baseCost: 100, desc: '增加等候座位' },
+    ];
+    
+    let html = '<div class="panel-section"><h4>店铺设施</h4><div class="item-grid">';
+    for (const upg of upgrades) {
+        const cost = Math.pow(2, upg.level) * upg.baseCost;
+        const maxed = upg.level >= 10;
+        const btnClass = maxed ? 'maxed-btn' : 'upgrade-btn';
+        const btnText = maxed ? '已满级' : `升级 ¥${cost}`;
+        html += `<div class="upgrade-item" data-upgrade-id="${upg.id}">
+            <div class="level">${upg.name} Lv.${upg.level}</div>
+            <div class="desc">${upg.desc}</div>
+            <button class="${btnClass}" data-upgrade-id="${upg.id}">${btnText}</button>
+        </div>`;
+    }
+    html += '</div></div>';
+    
+    // 绑定升级事件
+    setTimeout(() => {
+        document.querySelectorAll('.upgrade-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const upgradeId = btn.dataset.upgradeId;
+                purchaseUpgrade(upgradeId);
+            });
+        });
+    }, 0);
+    
+    return html;
+}
+
+// 购买升级
+function purchaseUpgrade(upgradeId) {
+    const upgrade = gameState.upgrades[upgradeId];
+    if (!upgrade) return;
+    
+    if (upgrade.level >= upgrade.maxLevel) {
+        showMessage('已达到最高等级');
+        return;
+    }
+    
+    const baseCosts = { tables: 200, tableSpeed: 150, kitchen: 250, waitingArea: 100 };
+    const cost = Math.pow(2, upgrade.level) * baseCosts[upgradeId];
+    
+    if (gameState.gold < cost) {
+        showMessage('金币不足，需要 ' + cost + ' 金币');
+        return;
+    }
+    
+    // 扣除金币并升级
+    gameState.gold -= cost;
+    upgrade.level++;
+    
+    // 应用升级效果
+    applyUpgradeEffect(upgradeId);
+    
+    showMessage(`${upgradeId === 'tables' ? '餐桌数量' : upgradeId === 'tableSpeed' ? '翻台速度' : upgradeId === 'kitchen' ? '厨房效率' : '等候区'}升级到 Lv.${upgrade.level}！`);
+    
+    // 刷新面板
+    showPanel('upgrade');
+}
+
+// 应用升级效果
+function applyUpgradeEffect(upgradeId) {
+    switch(upgradeId) {
+        case 'tables':
+            // 增加桌子
+            addTable();
+            break;
+        case 'tableSpeed':
+            // 翻台速度已在 updateTables 中使用
+            break;
+        case 'kitchen':
+            // 厨房效率已在 updateKitchen 中使用
+            break;
+        case 'waitingArea':
+            // 等候区容量增加
+            gameState.waitingAreaCapacity = 4 + gameState.upgrades.waitingArea.level * 2;
+            break;
+    }
+}
+
+// 添加新桌子
+function addTable() {
+    const isMobile = canvas.width < 800;
+    const tableCount = gameState.tables.length;
+    const cols = 4;
+    const row = Math.floor(tableCount / cols);
+    const col = tableCount % cols;
+    
+    const tableWidth = isMobile ? canvas.width * 0.3 : 100;
+    const tableHeight = isMobile ? canvas.height * 0.12 : 80;
+    const spacing = isMobile ? canvas.width * 0.35 : 150;
+    const rowSpacing = isMobile ? canvas.height * 0.22 : 130;
+    
+    const x = isMobile ? canvas.width * 0.1 + col * spacing : 150 + col * spacing;
+    const y = isMobile ? canvas.height * 0.25 + row * rowSpacing : 150 + row * rowSpacing;
+    
+    const table = new Table(tableCount, x, y);
+    table.width = tableWidth;
+    table.height = tableHeight;
+    gameState.tables.push(table);
 }
 
 // 渲染员工面板
@@ -541,28 +659,240 @@ function renderStaffPanel() {
     let html = '<div class="panel-section"><h4>员工列表</h4><div class="item-grid">';
     for (const s of STAFF_DATA) {
         const hired = gameState.staff[s.id] !== null;
-        html += `<div class="staff-item">
+        const btnClass = hired ? 'hired-btn' : 'hire-btn';
+        const btnText = hired ? '已雇佣' : `雇佣 ¥${s.wage}`;
+        html += `<div class="staff-item" data-staff-id="${s.id}">
             <div class="role">${s.name} - ${s.role}</div>
-            <div class="wage">日薪: ¥${s.wage}</div>
-            ${hired ? '<div class="hired">已雇佣</div>' : `<div class="cost">点击雇佣</div>`}
+            <div class="wage">日薪: ¥${s.wage}/天</div>
+            <button class="${btnClass}" data-staff-id="${s.id}">${btnText}</button>
+        </div>`;
+    }
+    html += '</div></div><div class="panel-section"><h4>员工状态</h4>';
+    for (const s of STAFF_DATA) {
+        const staff = gameState.staff[s.id];
+        if (staff) {
+            const statusText = getStaffStatusText(s.id);
+            html += `<div class="staff-status">
+                <span class="staff-name">${s.name}:</span>
+                <span class="staff-work">${statusText}</span>
+            </div>`;
+        }
+    }
+    html += '</div>';
+    
+    // 绑定雇佣事件
+    setTimeout(() => {
+        document.querySelectorAll('.hire-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const staffId = btn.dataset.staffId;
+                hireStaff(staffId);
+            });
+        });
+    }, 0);
+    
+    return html;
+}
+
+// 获取员工状态文本
+function getStaffStatusText(staffId) {
+    switch(staffId) {
+        case 'server': return '等待上菜...';
+        case 'cashier': return '等待结账...';
+        case 'chef': return '等待烹饪...';
+        case 'cleaner': return '等待打扫...';
+        default: return '工作中';
+    }
+}
+
+// 雇佣员工
+function hireStaff(staffId) {
+    const staffData = STAFF_DATA.find(s => s.id === staffId);
+    if (!staffData) return;
+    
+    if (gameState.staff[staffId]) {
+        showMessage('该员工已被雇佣');
+        return;
+    }
+    
+    if (gameState.gold < staffData.wage) {
+        showMessage('金币不足，需要 ' + staffData.wage + ' 金币');
+        return;
+    }
+    
+    // 扣除金币
+    gameState.gold -= staffData.wage;
+    
+    // 雇佣员工
+    gameState.staff[staffId] = {
+        ...staffData,
+        hired: true,
+        dailyWage: staffData.wage
+    };
+    
+    showMessage(`成功雇佣 ${staffData.name}！`);
+    
+    // 刷新面板
+    showPanel('staff');
+}
+
+// 渲染仓库面板
+function renderWarehousePanel() {
+    const flavors = [
+        { id: 'sour', name: '酸', icon: '🍋', color: '#f1c40f' },
+        { id: 'sweet', name: '甜', icon: '🍬', color: '#e91e63' },
+        { id: 'bitter', name: '苦', icon: '🥬', color: '#27ae60' },
+        { id: 'spicy', name: '辣', icon: '🌶️', color: '#e74c3c' },
+        { id: 'salty', name: '咸', icon: '🧂', color: '#3498db' },
+    ];
+    
+    // 菜品合成配方
+    const recipes = [
+        { name: '酸辣汤', ingredients: { sour: 2, spicy: 1 }, price: 25 },
+        { name: '糖醋里脊', ingredients: { sweet: 2, sour: 1 }, price: 28 },
+        { name: '苦瓜炒蛋', ingredients: { bitter: 2, sweet: 1 }, price: 20 },
+        { name: '麻辣火锅', ingredients: { spicy: 3, salty: 1 }, price: 45 },
+        { name: '盐水鸭', ingredients: { salty: 2, sweet: 1 }, price: 30 },
+    ];
+    
+    let html = '<div class="panel-section"><h4>五味树</h4><div class="item-grid">';
+    for (const f of flavors) {
+        const tree = gameState.flavorTrees[f.id];
+        const cost = Math.pow(2, tree.level) * 50;
+        html += `<div class="flavor-item">
+            <div class="flavor-icon" style="color: ${f.color}">${f.icon}</div>
+            <div class="flavor-name">${f.name}</div>
+            <div class="flavor-count">库存: ${gameState.ingredients[f.id]}</div>
+            <div class="flavor-level">等级: ${tree.level}</div>
+            <button class="upgrade-btn" data-flavor="${f.id}">升级 ¥${cost}</button>
+        </div>`;
+    }
+    html += '</div></div><div class="panel-section"><h4>食材合成</h4><div class="item-grid">';
+    for (const recipe of recipes) {
+        const canCraft = Object.entries(recipe.ingredients).every(([flavor, need]) => 
+            gameState.ingredients[flavor] >= need
+        );
+        const btnClass = canCraft ? 'craft-btn' : 'disabled-btn';
+        const btnText = canCraft ? '合成' : '材料不足';
+        const ingredientsText = Object.entries(recipe.ingredients)
+            .map(([f, n]) => `${flavors.find(fv => fv.id === f).icon}${n}`)
+            .join('+');
+        html += `<div class="recipe-item">
+            <div class="recipe-name">${recipe.name}</div>
+            <div class="recipe-ingredients">${ingredientsText}</div>
+            <div class="recipe-price">售价: ¥${recipe.price}</div>
+            <button class="${btnClass}" data-recipe="${recipe.name}">${btnText}</button>
         </div>`;
     }
     html += '</div></div>';
+    
+    // 绑定事件
+    setTimeout(() => {
+        document.querySelectorAll('.flavor-item .upgrade-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                upgradeFlavorTree(btn.dataset.flavor);
+            });
+        });
+        document.querySelectorAll('.recipe-item .craft-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                craftDish(btn.dataset.recipe);
+            });
+        });
+    }, 0);
+    
     return html;
+}
+
+// 升级五味树
+function upgradeFlavorTree(flavorId) {
+    const tree = gameState.flavorTrees[flavorId];
+    const cost = Math.pow(2, tree.level) * 50;
+    
+    if (gameState.gold < cost) {
+        showMessage('金币不足，需要 ' + cost + ' 金币');
+        return;
+    }
+    
+    gameState.gold -= cost;
+    tree.level++;
+    tree.production = tree.level;
+    
+    // 立即产出一些食材
+    gameState.ingredients[flavorId] += tree.level * 2;
+    
+    showMessage(`${tree.name} 升级到 Lv.${tree.level}！`);
+    showPanel('warehouse');
+}
+
+// 合成菜品
+function craftDish(recipeName) {
+    const recipes = {
+        '酸辣汤': { ingredients: { sour: 2, spicy: 1 }, price: 25 },
+        '糖醋里脊': { ingredients: { sweet: 2, sour: 1 }, price: 28 },
+        '苦瓜炒蛋': { ingredients: { bitter: 2, sweet: 1 }, price: 20 },
+        '麻辣火锅': { ingredients: { spicy: 3, salty: 1 }, price: 45 },
+        '盐水鸭': { ingredients: { salty: 2, sweet: 1 }, price: 30 },
+    };
+    
+    const recipe = recipes[recipeName];
+    if (!recipe) return;
+    
+    // 检查材料是否足够
+    for (const [flavor, need] of Object.entries(recipe.ingredients)) {
+        if (gameState.ingredients[flavor] < need) {
+            showMessage('材料不足');
+            return;
+        }
+    }
+    
+    // 消耗材料
+    for (const [flavor, need] of Object.entries(recipe.ingredients)) {
+        gameState.ingredients[flavor] -= need;
+    }
+    
+    // 获得金币
+    gameState.gold += recipe.price;
+    
+    showMessage(`合成 ${recipeName} 成功！获得 ¥${recipe.price}`);
+    showPanel('warehouse');
 }
 
 // 生成顾客
 function spawnCustomer() {
     // 找空桌子
     const emptyTable = gameState.tables.find(t => t.status === 'empty');
-    if (!emptyTable) return;
     
-    const customer = new Customer();
-    emptyTable.customer = customer;
-    emptyTable.status = 'occupied';
-    
-    // 自动生成订单
-    generateOrder(emptyTable);
+    if (emptyTable) {
+        // 有空桌子，直接坐下
+        const customer = new Customer();
+        emptyTable.customer = customer;
+        emptyTable.status = 'occupied';
+        
+        // 自动生成订单
+        generateOrder(emptyTable);
+    } else if (gameState.waitingQueue.length < gameState.waitingAreaCapacity) {
+        // 桌子满了，去等候区排队
+        const customer = new Customer();
+        gameState.waitingQueue.push(customer);
+    }
+    // 等候区满了则不生成
+}
+
+// 将排队的顾客安排到空桌子
+function seatWaitingCustomer() {
+    const emptyTable = gameState.tables.find(t => t.status === 'empty');
+    if (emptyTable && gameState.waitingQueue.length > 0) {
+        const customer = gameState.waitingQueue.shift();
+        emptyTable.customer = customer;
+        emptyTable.status = 'occupied';
+        
+        // 自动生成订单
+        generateOrder(emptyTable);
+        return true;
+    }
+    return false;
 }
 
 // 生成订单
@@ -604,14 +934,103 @@ function update(deltaTime) {
         spawnCustomer();
     }
     
+    // 尝试安排等候区的顾客到空桌子
+    seatWaitingCustomer();
+    
+    // 员工自动工作
+    staffAutoWork();
+    
     // 更新厨房
     updateKitchen(deltaTime);
     
     // 更新桌子状态
     updateTables(deltaTime);
     
+    // 五味树自动产出（每10秒产出一次）
+    updateFlavorTrees(deltaTime);
+    
     // 更新UI
     updateUI();
+}
+
+// 五味树自动产出
+function updateFlavorTrees(deltaTime) {
+    const PRODUCTION_INTERVAL = 10000; // 10秒
+    
+    for (const flavor in gameState.flavorTimers) {
+        gameState.flavorTimers[flavor] += deltaTime;
+        if (gameState.flavorTimers[flavor] >= PRODUCTION_INTERVAL) {
+            gameState.flavorTimers[flavor] = 0;
+            // 产出食材
+            const tree = gameState.flavorTrees[flavor];
+            gameState.ingredients[flavor] += tree.production;
+        }
+    }
+}
+
+// 员工自动工作系统
+function staffAutoWork() {
+    // 1. 收银员自动结账
+    if (gameState.staff.cashier) {
+        for (const table of gameState.tables) {
+            if (table.status === 'waitingCheckout') {
+                checkout(table);
+                break; // 每帧只处理一桌
+            }
+        }
+    }
+    
+    // 2. 厨师自动烹饪
+    if (gameState.staff.chef) {
+        // 找需要烹饪的桌子
+        for (const table of gameState.tables) {
+            if (table.status === 'occupied' && table.order && !table.food) {
+                const freeSlot = gameState.kitchen.slots.find(s => s.status === 'idle');
+                if (freeSlot) {
+                    startCooking(table);
+                    break;
+                }
+            }
+        }
+    }
+    
+    // 3. 服务员自动上菜
+    if (gameState.staff.server) {
+        for (const slot of gameState.kitchen.slots) {
+            if (slot.status === 'done' && slot.dish) {
+                const table = gameState.tables.find(t => t.id === slot.tableId);
+                if (table) {
+                    table.food = slot.dish;
+                    table.status = 'eating';
+                    table.eatingTimer = 0;
+                }
+                // 重置槽位
+                slot.status = 'idle';
+                slot.progress = 0;
+                slot.dish = null;
+                break;
+            }
+        }
+    }
+    
+    // 4. 保洁自动打扫
+    if (gameState.staff.cleaner) {
+        for (const table of gameState.tables) {
+            if (table.status === 'dirty') {
+                // 保洁自动打扫
+                const cleanSpeed = 1 + (gameState.staff.cleaner.efficiency - 1) * 0.5;
+                table.dirtyTimer += 16 * cleanSpeed; // 假设每帧约16ms
+                if (table.dirtyTimer >= CONFIG.CLEANING_DURATION) {
+                    table.status = 'empty';
+                    table.customer = null;
+                    table.order = null;
+                    table.food = null;
+                    table.dirtyTimer = 0;
+                }
+                break; // 每帧只处理一桌
+            }
+        }
+    }
 }
 
 // 更新厨房
@@ -623,19 +1042,23 @@ function updateKitchen(deltaTime) {
             slot.progress += deltaTime / CONFIG.COOKING_DURATION * cookingSpeed * 100;
             if (slot.progress >= 100) {
                 slot.status = 'done';
-                // 上菜
-                const table = gameState.tables.find(t => t.id === slot.tableId);
-                if (table) {
-                    table.food = slot.dish;
-                    table.status = 'eating';
-                    table.eatingTimer = 0;
+                
+                // 如果没有服务员，系统自动上菜
+                if (!gameState.staff.server) {
+                    const table = gameState.tables.find(t => t.id === slot.tableId);
+                    if (table) {
+                        table.food = slot.dish;
+                        table.status = 'eating';
+                        table.eatingTimer = 0;
+                    }
+                    // 重置槽位
+                    setTimeout(() => {
+                        slot.status = 'idle';
+                        slot.progress = 0;
+                        slot.dish = null;
+                    }, 500);
                 }
-                // 重置槽位
-                setTimeout(() => {
-                    slot.status = 'idle';
-                    slot.progress = 0;
-                    slot.dish = null;
-                }, 500);
+                // 如果有服务员，等待服务员来上菜（在staffAutoWork中处理）
             }
         }
     }
@@ -811,10 +1234,28 @@ function drawWaitingArea() {
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 18px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText('等候区', waitX + waitW / 2, waitY + 30);
+    ctx.fillText(`等候区 (${gameState.waitingQueue.length}/${gameState.waitingAreaCapacity})`, waitX + waitW / 2, waitY + 30);
     
-    // 等待椅
-    for (let i = 0; i < 6; i++) {
+    // 显示排队的顾客
+    for (let i = 0; i < Math.min(gameState.waitingQueue.length, 6); i++) {
+        const x = waitX + 30 + (i % 3) * 60;
+        const y = waitY + 60 + Math.floor(i / 3) * 50;
+        
+        // 顾客
+        ctx.fillStyle = gameState.waitingQueue[i].color;
+        ctx.beginPath();
+        ctx.arc(x, y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 顾客名称
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px Microsoft YaHei';
+        ctx.textAlign = 'center';
+        ctx.fillText(gameState.waitingQueue[i].name.substring(0, 2), x, y + 25);
+    }
+    
+    // 等待椅（空位）
+    for (let i = gameState.waitingQueue.length; i < Math.min(gameState.waitingAreaCapacity, 6); i++) {
         const x = waitX + 30 + (i % 3) * 60;
         const y = waitY + 60 + Math.floor(i / 3) * 50;
         ctx.fillStyle = '#666';
