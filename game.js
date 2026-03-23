@@ -134,15 +134,15 @@ const CONFIG = {
     CLEANING_DURATION: 3000,
 };
 
-// 门店关键区域位置
+// 门店关键区域位置 - 2D正面视角
 const storeAreas = {
-    entrance: { x: 50, y: 350 },      // 正门入口
-    exit: { x: 1150, y: 350 },        // 出口
-    waitingArea: { x: -80, y: 320 },  // 店外等候区
-    cashier: { x: 500, y: 420 },      // 收银台位置
-    kitchen: { x: 700, y: 180 },       // 厨房区域
-    serverStation: { x: 280, y: 280 }, // 服务员岗位
-    cleanerRoom: { x: 150, y: 420 },   // 保洁员储藏室
+    entrance: { x: 1100, y: 380 },      // 正门入口（右侧）
+    exit: { x: 1100, y: 380 },          // 出口（同入口）
+    waitingArea: { x: 1050, y: 350 },   // 等候区（右侧门口）
+    cashier: { x: 600, y: 350 },         // 收银台位置（中部）
+    kitchen: { x: 600, y: 80 },          // 厨房区域（顶部中央）
+    serverStation: { x: 200, y: 350 },  // 服务员岗位（左侧）
+    cleanerRoom: { x: 150, y: 450 },    // 保洁员储藏室
 };
 
 // 收银台区域
