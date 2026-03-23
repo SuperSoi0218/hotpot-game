@@ -6,11 +6,14 @@ const ctx = canvas.getContext('2d');
 // 响应式画布大小
 function resizeCanvas() {
     const isMobile = window.innerWidth <= 768;
+    const container = document.getElementById('game-container');
     
     if (isMobile) {
         // 手机上使用窗口大小
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        container.style.width = '100vw';
+        container.style.height = '100vh';
     } else {
         // 电脑上是固定大小
         canvas.width = 1200;
@@ -19,19 +22,109 @@ function resizeCanvas() {
         if (window.innerWidth < 1200) {
             canvas.width = window.innerWidth * 0.95;
             canvas.height = canvas.width * 0.583;
+            container.style.width = canvas.width + 'px';
+            container.style.height = canvas.height + 'px';
+        } else {
+            container.style.width = '1200px';
+            container.style.height = '700px';
         }
+    }
+    
+    // 重新初始化游戏（如果已经初始化过，需要重新计算桌子位置）
+    if (gameState.tables.length > 0) {
+        initTables();
+    }
+}
+
+// 初始化桌子位置
+function initTables() {
+    const isMobile = canvas.width < 800;
+    const scale = canvas.width / 1200;
+    
+    const tablePositions = isMobile ? [
+        { x: canvas.width * 0.1, y: canvas.height * 0.3 },
+        { x: canvas.width * 0.55, y: canvas.height * 0.3 },
+        { x: canvas.width * 0.1, y: canvas.height * 0.55 },
+        { x: canvas.width * 0.55, y: canvas.height * 0.55 },
+    ] : [
+        { x: 150, y: 150 },
+        { x: 350, y: 150 },
+        { x: 150, y: 300 },
+        { x: 350, y: 300 },
+    ];
+    
+    const tableWidth = isMobile ? canvas.width * 0.3 : 100;
+    const tableHeight = isMobile ? canvas.height * 0.12 : 80;
+    
+    for (let i = 0; i < gameState.tables.length; i++) {
+        const table = gameState.tables[i];
+        table.x = tablePositions[i].x;
+        table.y = tablePositions[i].y;
+        table.width = tableWidth;
+        table.height = tableHeight;
     }
 }
 
 // 页面加载时和窗口大小改变时调整画布大小
-window.addEventListener('load', resizeCanvas);
+window.addEventListener('DOMContentLoaded', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
 
-// 移动端点击延迟修复
-if ('ontouchstart' in window) {
-    canvas.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-    }, {passive: false});
+// 移动端触摸事件支持
+function setupTouchEvents() {
+    // 触摸事件处理
+    canvas.addEventListener('touchstart', handleTouch, {passive: false});
+    canvas.addEventListener('touchend', handleTouch, {passive: false});
+}
+
+function handleTouch(e) {
+    e.preventDefault();
+    
+    let touch = e.touches[0] || e.changedTouches[0];
+    if (!touch) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    // 触发点击处理
+    handleCanvasClickAt(x, y);
+}
+
+// 修改点击处理函数，支持触摸和鼠标
+function handleCanvasClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    handleCanvasClickAt(x, y);
+}
+
+function handleCanvasClickAt(x, y) {
+    // 检查是否点击了桌子
+    for (const table of gameState.tables) {
+        if (x >= table.x && x <= table.x + table.width &&
+            y >= table.y && y <= table.y + table.height) {
+            handleTableClick(table);
+            return;
+        }
+    }
+    
+    // 检查是否点击了厨房槽位 - 移动端使用相对坐标
+    const kitchenX = canvas.width * 0.5;
+    const kitchenWidth = canvas.width * 0.4;
+    const kitchenY = canvas.height * 0.1;
+    const kitchenHeight = canvas.height * 0.5;
+    
+    for (let i = 0; i < gameState.kitchen.slots.length; i++) {
+        const slotX = kitchenX + i * (kitchenWidth / 2);
+        const slotY = kitchenY + kitchenHeight * 0.2;
+        const slotWidth = kitchenWidth / 3;
+        const slotHeight = kitchenHeight * 0.15;
+        
+        if (x >= slotX && x <= slotX + slotWidth && y >= slotY && y <= slotY + slotHeight) {
+            handleKitchenClick(gameState.kitchen.slots[i]);
+            return;
+        }
+    }
 }
 
 // 游戏配置
@@ -222,15 +315,17 @@ class KitchenSlot {
 
 // 初始化游戏
 function init() {
+    // 先确保画布大小正确
+    resizeCanvas();
+    
     // 动态计算桌子位置（适配不同屏幕）
     const isMobile = canvas.width < 800;
-    const scale = canvas.width / 1200; // 缩放比例
     
     const tablePositions = isMobile ? [
-        { x: canvas.width * 0.15, y: canvas.height * 0.25 },
-        { x: canvas.width * 0.55, y: canvas.height * 0.25 },
-        { x: canvas.width * 0.15, y: canvas.height * 0.50 },
-        { x: canvas.width * 0.55, y: canvas.height * 0.50 },
+        { x: canvas.width * 0.1, y: canvas.height * 0.3 },
+        { x: canvas.width * 0.55, y: canvas.height * 0.3 },
+        { x: canvas.width * 0.1, y: canvas.height * 0.55 },
+        { x: canvas.width * 0.55, y: canvas.height * 0.55 },
     ] : [
         { x: 150, y: 150 },
         { x: 350, y: 150 },
@@ -239,7 +334,7 @@ function init() {
     ];
     
     // 动态设置桌子大小
-    const tableWidth = isMobile ? canvas.width * 0.25 : 100;
+    const tableWidth = isMobile ? canvas.width * 0.3 : 100;
     const tableHeight = isMobile ? canvas.height * 0.12 : 80;
     
     for (let i = 0; i < CONFIG.TABLE_COUNT; i++) {
@@ -257,6 +352,9 @@ function init() {
     // 绑定UI事件
     bindEvents();
     
+    // 设置触摸事件
+    setupTouchEvents();
+    
     // 开始游戏循环
     requestAnimationFrame(gameLoop);
 }
@@ -269,8 +367,13 @@ function bindEvents() {
     document.getElementById('btn-staff').addEventListener('click', () => showPanel('staff'));
     document.getElementById('panel-close').addEventListener('click', hidePanel);
     
-    // 画布点击事件
+    // 画布点击事件 - 使用通用处理函数
     canvas.addEventListener('click', handleCanvasClick);
+    
+    // 触摸事件也需要阻止默认行为
+    canvas.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+    }, {passive: false});
 }
 
 // 处理画布点击
@@ -278,25 +381,7 @@ function handleCanvasClick(e) {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
-    // 检查是否点击了桌子
-    for (const table of gameState.tables) {
-        if (x >= table.x && x <= table.x + table.width &&
-            y >= table.y && y <= table.y + table.height) {
-            handleTableClick(table);
-            return;
-        }
-    }
-    
-    // 检查是否点击了厨房槽位
-    for (let i = 0; i < gameState.kitchen.slots.length; i++) {
-        const slotX = 630 + i * 100;
-        const slotY = 150;
-        if (x >= slotX && x <= slotX + 80 && y >= slotY && y <= slotY + 60) {
-            handleKitchenClick(gameState.kitchen.slots[i]);
-            return;
-        }
-    }
+    handleCanvasClickAt(x, y);
 }
 
 // 处理桌子点击
@@ -622,57 +707,82 @@ function render() {
 
 // 绘制地板
 function drawFloor() {
-    // 地板纹理
-    ctx.fillStyle = '#3d3d54';
-    ctx.fillRect(50, 80, 500, 400);
+    const isMobile = canvas.width < 800;
     
-    // 地板边缘
-    ctx.strokeStyle = '#4d4d64';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(50, 80, 500, 400);
+    if (isMobile) {
+        // 移动端地板占满整个画布上半部分
+        const floorX = canvas.width * 0.05;
+        const floorY = canvas.height * 0.08;
+        const floorW = canvas.width * 0.9;
+        const floorH = canvas.height * 0.55;
+        
+        ctx.fillStyle = '#3d3d54';
+        ctx.fillRect(floorX, floorY, floorW, floorH);
+        
+        ctx.strokeStyle = '#4d4d64';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(floorX, floorY, floorW, floorH);
+    } else {
+        // 桌面端固定坐标
+        ctx.fillStyle = '#3d3d54';
+        ctx.fillRect(50, 80, 500, 400);
+        
+        ctx.strokeStyle = '#4d4d64';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(50, 80, 500, 400);
+    }
 }
 
 // 绘制厨房
 function drawKitchen() {
+    // 移动端厨房区域动态计算
+    const isMobile = canvas.width < 800;
+    const kitchenX = isMobile ? canvas.width * 0.05 : 600;
+    const kitchenW = isMobile ? canvas.width * 0.9 : 250;
+    const kitchenY = isMobile ? canvas.height * 0.7 : 80;
+    const kitchenH = isMobile ? canvas.height * 0.25 : 400;
+    
     // 厨房区域背景
     ctx.fillStyle = '#4a4a5a';
-    ctx.fillRect(600, 80, 250, 400);
+    ctx.fillRect(kitchenX, kitchenY, kitchenW, kitchenH);
     
     // 厨房标题
     ctx.fillStyle = '#ff6b6b';
-    ctx.font = 'bold 20px Microsoft YaHei';
+    ctx.font = `bold ${isMobile ? 16 : 20}px Microsoft YaHei`;
     ctx.textAlign = 'center';
-    ctx.fillText('厨房', 725, 110);
+    ctx.fillText('厨房', kitchenX + kitchenW / 2, kitchenY + 20);
     
     // 灶台
     for (let i = 0; i < gameState.kitchen.slots.length; i++) {
         const slot = gameState.kitchen.slots[i];
-        const x = 630 + i * 100;
-        const y = 150;
+        const slotX = kitchenX + kitchenW * 0.1 + i * (kitchenW * 0.4);
+        const slotY = kitchenY + kitchenH * 0.3;
+        const slotW = kitchenW * 0.35;
+        const slotH = kitchenH * 0.3;
         
         // 灶台
         ctx.fillStyle = slot.status === 'cooking' ? '#ff4444' : '#666';
-        ctx.fillRect(x, y, 80, 60);
+        ctx.fillRect(slotX, slotY, slotW, slotH);
         ctx.strokeStyle = '#888';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, 80, 60);
+        ctx.strokeRect(slotX, slotY, slotW, slotH);
         
         // 进度条背景
         ctx.fillStyle = '#333';
-        ctx.fillRect(x, y + 70, 80, 10);
+        ctx.fillRect(slotX, slotY + slotH + 5, slotW, 8);
         
         // 进度条
         ctx.fillStyle = '#4ecdc4';
-        ctx.fillRect(x, y + 70, 80 * (slot.progress / 100), 10);
+        ctx.fillRect(slotX, slotY + slotH + 5, slotW * (slot.progress / 100), 8);
         
         // 状态文字
         ctx.fillStyle = '#fff';
-        ctx.font = '12px Microsoft YaHei';
+        ctx.font = `${isMobile ? 10 : 12}px Microsoft YaHei`;
         ctx.textAlign = 'center';
         let statusText = '空闲';
         if (slot.status === 'cooking') statusText = '烹饪中';
         if (slot.status === 'done') statusText = '已完成';
-        ctx.fillText(statusText, x + 40, y + 95);
+        ctx.fillText(statusText, slotX + slotW / 2, slotY + slotH + 22);
     }
 }
 
@@ -683,18 +793,30 @@ function drawKitchenProgress() {
 
 // 绘制等待区
 function drawWaitingArea() {
+    const isMobile = canvas.width < 800;
+    
+    if (isMobile) {
+        // 移动端不显示等待区（屏幕太小）
+        return;
+    }
+    
+    const waitX = 900;
+    const waitY = 80;
+    const waitW = 250;
+    const waitH = 200;
+    
     ctx.fillStyle = '#4a4a5a';
-    ctx.fillRect(900, 80, 250, 200);
+    ctx.fillRect(waitX, waitY, waitW, waitH);
     
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 18px Microsoft YaHei';
     ctx.textAlign = 'center';
-    ctx.fillText('等候区', 1025, 110);
+    ctx.fillText('等候区', waitX + waitW / 2, waitY + 30);
     
     // 等待椅
     for (let i = 0; i < 6; i++) {
-        const x = 930 + (i % 3) * 60;
-        const y = 140 + Math.floor(i / 3) * 50;
+        const x = waitX + 30 + (i % 3) * 60;
+        const y = waitY + 60 + Math.floor(i / 3) * 50;
         ctx.fillStyle = '#666';
         ctx.beginPath();
         ctx.arc(x, y, 15, 0, Math.PI * 2);
