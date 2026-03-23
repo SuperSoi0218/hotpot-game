@@ -4,6 +4,92 @@
     box-sizing: border-box;
 }
 
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+    body {
+        overflow: hidden !important;
+    }
+    
+    #game-container {
+        width: 100vw !important;
+        height: 100vh !important;
+        border-radius: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+    }
+    
+    #game-canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    #top-bar {
+        height: 40px;
+        padding: 0 10px;
+    }
+    
+    .resource {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+    
+    .resource .icon {
+        font-size: 14px;
+    }
+    
+    .day-display {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+    
+    #bottom-bar {
+        height: 50px;
+        gap: 8px;
+    }
+    
+    .game-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    #panel {
+        width: 95% !important;
+        max-height: 70% !important;
+        top: 50px;
+    }
+    
+    .panel-header {
+        padding: 10px 15px;
+    }
+    
+    .panel-header h3 {
+        font-size: 16px;
+    }
+    
+    #panel-content {
+        padding: 15px;
+        max-height: 60%;
+    }
+    
+    .item-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .menu-item, .upgrade-item, .staff-item {
+        padding: 8px;
+    }
+    
+    .menu-item .name, .upgrade-item .level, .staff-item .role {
+        font-size: 12px;
+    }
+    
+    .menu-item .price, .upgrade-item .cost {
+        font-size: 14px;
+    }
+}
+
 body {
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     min-height: 100vh;
@@ -11,6 +97,7 @@ body {
     justify-content: center;
     align-items: center;
     font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    overflow: hidden;
 }
 
 #game-container {

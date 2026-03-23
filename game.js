@@ -3,6 +3,37 @@
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 
+// 响应式画布大小
+function resizeCanvas() {
+    const isMobile = window.innerWidth <= 768;
+    
+    if (isMobile) {
+        // 手机上使用窗口大小
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    } else {
+        // 电脑上是固定大小
+        canvas.width = 1200;
+        canvas.height = 700;
+        // 限制最大宽度
+        if (window.innerWidth < 1200) {
+            canvas.width = window.innerWidth * 0.95;
+            canvas.height = canvas.width * 0.583;
+        }
+    }
+}
+
+// 页面加载时和窗口大小改变时调整画布大小
+window.addEventListener('load', resizeCanvas);
+window.addEventListener('resize', resizeCanvas);
+
+// 移动端点击延迟修复
+if ('ontouchstart' in window) {
+    canvas.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+    }, {passive: false});
+}
+
 // 游戏配置
 const CONFIG = {
     FPS: 60,
