@@ -8,6 +8,10 @@
 @media screen and (max-width: 768px) {
     body {
         overflow: hidden !important;
+        touch-action: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
     }
     
     #game-container {
@@ -22,71 +26,88 @@
     #game-canvas {
         width: 100% !important;
         height: 100% !important;
+        touch-action: none;
+    }
+    
+    #ui-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
     }
     
     #top-bar {
-        height: 40px;
-        padding: 0 10px;
+        height: 35px;
+        padding: 0 8px;
     }
     
     .resource {
-        padding: 4px 8px;
-        font-size: 12px;
+        padding: 3px 6px;
+        font-size: 11px;
     }
     
     .resource .icon {
-        font-size: 14px;
+        font-size: 12px;
     }
     
     .day-display {
-        font-size: 11px;
-        padding: 4px 8px;
+        font-size: 10px;
+        padding: 3px 6px;
     }
     
     #bottom-bar {
-        height: 50px;
-        gap: 8px;
+        height: 45px;
+        gap: 5px;
+        padding: 0 5px;
     }
     
     .game-btn {
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: 5px 10px;
+        font-size: 11px;
+        border-radius: 15px;
     }
     
     #panel {
         width: 95% !important;
-        max-height: 70% !important;
-        top: 50px;
+        max-height: 75% !important;
+        top: 40px;
+        left: 2.5% !important;
+        transform: none !important;
     }
     
     .panel-header {
-        padding: 10px 15px;
+        padding: 8px 12px;
     }
     
     .panel-header h3 {
-        font-size: 16px;
+        font-size: 14px;
+    }
+    
+    #panel-close {
+        font-size: 22px;
     }
     
     #panel-content {
-        padding: 15px;
-        max-height: 60%;
+        padding: 10px;
+        max-height: 65%;
     }
     
     .item-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
+        gap: 6px;
     }
     
     .menu-item, .upgrade-item, .staff-item {
-        padding: 8px;
+        padding: 6px;
     }
     
     .menu-item .name, .upgrade-item .level, .staff-item .role {
-        font-size: 12px;
+        font-size: 11px;
     }
     
     .menu-item .price, .upgrade-item .cost {
-        font-size: 14px;
+        font-size: 12px;
     }
 }
 
@@ -304,6 +325,41 @@ body {
     margin-top: 4px;
 }
 
+.upgrade-item .desc {
+    color: #aaa;
+    font-size: 11px;
+    margin: 4px 0;
+}
+
+.upgrade-btn {
+    background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%);
+    border: none;
+    color: #333;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 15px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.3s ease;
+}
+
+.upgrade-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+}
+
+.maxed-btn {
+    background: #666;
+    border: none;
+    color: #aaa;
+    padding: 8px 16px;
+    font-size: 12px;
+    border-radius: 15px;
+    cursor: not-allowed;
+    margin-top: 8px;
+}
+
 .staff-item .role {
     color: #fff;
     font-size: 14px;
@@ -319,6 +375,135 @@ body {
     color: #4ecdc4;
     font-size: 12px;
     margin-top: 4px;
+}
+
+.hire-btn {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 15px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.3s ease;
+}
+
+.hire-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(78, 205, 196, 0.4);
+}
+
+.hired-btn {
+    background: #666;
+    border: none;
+    color: #aaa;
+    padding: 8px 16px;
+    font-size: 12px;
+    border-radius: 15px;
+    cursor: not-allowed;
+    margin-top: 8px;
+}
+
+.staff-status {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.staff-name {
+    color: #4ecdc4;
+    font-weight: bold;
+}
+
+.staff-work {
+    color: #ffd700;
+}
+
+/* 仓库面板样式 */
+.flavor-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+}
+
+.flavor-icon {
+    font-size: 32px;
+}
+
+.flavor-name {
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 8px 0;
+}
+
+.flavor-count {
+    color: #ffd700;
+    font-size: 14px;
+}
+
+.flavor-level {
+    color: #aaa;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.recipe-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+}
+
+.recipe-name {
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.recipe-ingredients {
+    color: #aaa;
+    font-size: 12px;
+    margin: 4px 0;
+}
+
+.recipe-price {
+    color: #ffd700;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.craft-btn {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.craft-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(155, 89, 182, 0.4);
+}
+
+.disabled-btn {
+    background: #666;
+    border: none;
+    color: #aaa;
+    padding: 8px 16px;
+    font-size: 12px;
+    border-radius: 15px;
+    cursor: not-allowed;
 }
 
 /* 滚动条样式 */
