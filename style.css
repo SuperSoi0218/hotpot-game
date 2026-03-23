@@ -251,12 +251,15 @@ body {
 }
 
 #panel-close {
-    background: none;
+    background: #ff4444;
     border: none;
-    color: #aaa;
-    font-size: 28px;
+    color: #fff;
+    font-size: 24px;
     cursor: pointer;
     line-height: 1;
+    padding: 8px 16px;
+    border-radius: 50%;
+    font-weight: bold;
 }
 
 #panel-close:hover {
