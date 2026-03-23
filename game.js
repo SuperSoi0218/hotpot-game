@@ -3,6 +3,37 @@
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 
+// 响应式画布大小
+function resizeCanvas() {
+    const isMobile = window.innerWidth <= 768;
+    
+    if (isMobile) {
+        // 手机上使用窗口大小
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    } else {
+        // 电脑上是固定大小
+        canvas.width = 1200;
+        canvas.height = 700;
+        // 限制最大宽度
+        if (window.innerWidth < 1200) {
+            canvas.width = window.innerWidth * 0.95;
+            canvas.height = canvas.width * 0.583;
+        }
+    }
+}
+
+// 页面加载时和窗口大小改变时调整画布大小
+window.addEventListener('load', resizeCanvas);
+window.addEventListener('resize', resizeCanvas);
+
+// 移动端点击延迟修复
+if ('ontouchstart' in window) {
+    canvas.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+    }, {passive: false});
+}
+
 // 游戏配置
 const CONFIG = {
     FPS: 60,
@@ -191,16 +222,31 @@ class KitchenSlot {
 
 // 初始化游戏
 function init() {
-    // 初始化桌子
-    const tablePositions = [
+    // 动态计算桌子位置（适配不同屏幕）
+    const isMobile = canvas.width < 800;
+    const scale = canvas.width / 1200; // 缩放比例
+    
+    const tablePositions = isMobile ? [
+        { x: canvas.width * 0.15, y: canvas.height * 0.25 },
+        { x: canvas.width * 0.55, y: canvas.height * 0.25 },
+        { x: canvas.width * 0.15, y: canvas.height * 0.50 },
+        { x: canvas.width * 0.55, y: canvas.height * 0.50 },
+    ] : [
         { x: 150, y: 150 },
         { x: 350, y: 150 },
         { x: 150, y: 300 },
         { x: 350, y: 300 },
     ];
     
+    // 动态设置桌子大小
+    const tableWidth = isMobile ? canvas.width * 0.25 : 100;
+    const tableHeight = isMobile ? canvas.height * 0.12 : 80;
+    
     for (let i = 0; i < CONFIG.TABLE_COUNT; i++) {
-        gameState.tables.push(new Table(i, tablePositions[i].x, tablePositions[i].y));
+        const table = new Table(i, tablePositions[i].x, tablePositions[i].y);
+        table.width = tableWidth;
+        table.height = tableHeight;
+        gameState.tables.push(table);
     }
     
     // 初始化厨房槽位
