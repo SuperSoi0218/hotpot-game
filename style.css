@@ -8,6 +8,10 @@
 @media screen and (max-width: 768px) {
     body {
         overflow: hidden !important;
+        touch-action: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
     }
     
     #game-container {
@@ -22,71 +26,88 @@
     #game-canvas {
         width: 100% !important;
         height: 100% !important;
+        touch-action: none;
+    }
+    
+    #ui-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
     }
     
     #top-bar {
-        height: 40px;
-        padding: 0 10px;
+        height: 35px;
+        padding: 0 8px;
     }
     
     .resource {
-        padding: 4px 8px;
-        font-size: 12px;
+        padding: 3px 6px;
+        font-size: 11px;
     }
     
     .resource .icon {
-        font-size: 14px;
+        font-size: 12px;
     }
     
     .day-display {
-        font-size: 11px;
-        padding: 4px 8px;
+        font-size: 10px;
+        padding: 3px 6px;
     }
     
     #bottom-bar {
-        height: 50px;
-        gap: 8px;
+        height: 45px;
+        gap: 5px;
+        padding: 0 5px;
     }
     
     .game-btn {
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: 5px 10px;
+        font-size: 11px;
+        border-radius: 15px;
     }
     
     #panel {
         width: 95% !important;
-        max-height: 70% !important;
-        top: 50px;
+        max-height: 75% !important;
+        top: 40px;
+        left: 2.5% !important;
+        transform: none !important;
     }
     
     .panel-header {
-        padding: 10px 15px;
+        padding: 8px 12px;
     }
     
     .panel-header h3 {
-        font-size: 16px;
+        font-size: 14px;
+    }
+    
+    #panel-close {
+        font-size: 22px;
     }
     
     #panel-content {
-        padding: 15px;
-        max-height: 60%;
+        padding: 10px;
+        max-height: 65%;
     }
     
     .item-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
+        gap: 6px;
     }
     
     .menu-item, .upgrade-item, .staff-item {
-        padding: 8px;
+        padding: 6px;
     }
     
     .menu-item .name, .upgrade-item .level, .staff-item .role {
-        font-size: 12px;
+        font-size: 11px;
     }
     
     .menu-item .price, .upgrade-item .cost {
-        font-size: 14px;
+        font-size: 12px;
     }
 }
 
