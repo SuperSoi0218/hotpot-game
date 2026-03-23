@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幸福路的火锅店</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas" width="1200" height="700"></canvas>
+        <div id="ui-overlay">
+            <div id="top-bar">
+                <div class="resource">
+                    <span class="icon">💰</span>
+                    <span id="gold-display">0</span>
+                </div>
+                <div class="resource">
+                    <span class="icon">💎</span>
+                    <span id="gem-display">0</span>
+                </div>
+                <div class="day-display">
+                    第 <span id="day-display">1</span> 天
+                </div>
+            </div>
+            
+            <div id="bottom-bar">
+                <button id="btn-menu" class="game-btn">菜单</button>
+                <button id="btn-kitchen" class="game-btn">厨房</button>
+                <button id="btn-upgrade" class="game-btn">升级</button>
+                <button id="btn-staff" class="game-btn">员工</button>
+            </div>
+        </div>
+        
+        <!-- 弹窗面板 -->
+        <div id="panel" class="hidden">
+            <div class="panel-header">
+                <h3 id="panel-title">标题</h3>
+                <button id="panel-close">×</button>
+            </div>
+            <div id="panel-content"></div>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>

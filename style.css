@@ -1,0 +1,250 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+}
+
+#game-container {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+#game-canvas {
+    display: block;
+    background: #2d2d44;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+#top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    pointer-events: auto;
+}
+
+.resource {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 6px 16px;
+    border-radius: 20px;
+    color: #ffd700;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.resource .icon {
+    font-size: 20px;
+}
+
+.day-display {
+    color: #fff;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 6px 16px;
+    border-radius: 20px;
+}
+
+#bottom-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    pointer-events: auto;
+}
+
+.game-btn {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+    border: none;
+    color: white;
+    padding: 12px 28px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+.game-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+}
+
+.game-btn:active {
+    transform: translateY(0);
+}
+
+/* 弹窗面板 */
+#panel {
+    position: absolute;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    max-height: 500px;
+    background: rgba(40, 40, 60, 0.95);
+    border-radius: 16px;
+    border: 2px solid #ff6b6b;
+    pointer-events: auto;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+#panel.hidden {
+    display: none;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: rgba(255, 107, 107, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-header h3 {
+    color: #fff;
+    font-size: 20px;
+}
+
+#panel-close {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+#panel-close:hover {
+    color: #fff;
+}
+
+#panel-content {
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+    color: #fff;
+}
+
+/* 面板内容样式 */
+.panel-section {
+    margin-bottom: 20px;
+}
+
+.panel-section h4 {
+    color: #ff6b6b;
+    margin-bottom: 12px;
+    font-size: 16px;
+}
+
+.item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.menu-item, .upgrade-item, .staff-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.menu-item:hover, .upgrade-item:hover, .staff-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #ff6b6b;
+}
+
+.menu-item .name {
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.menu-item .price {
+    color: #ffd700;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.upgrade-item .level {
+    color: #4ecdc4;
+    font-size: 12px;
+}
+
+.upgrade-item .cost {
+    color: #ffd700;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.staff-item .role {
+    color: #fff;
+    font-size: 14px;
+}
+
+.staff-item .wage {
+    color: #aaa;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.staff-item .hired {
+    color: #4ecdc4;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* 滚动条样式 */
+#panel-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+#panel-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+#panel-content::-webkit-scrollbar-thumb {
+    background: #ff6b6b;
+    border-radius: 4px;
+}
